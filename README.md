@@ -7,6 +7,9 @@ SCOPE:
 A functional bipedal autorigger that generates a clean, correctly oriented rig from user placed locators. The user has the option to generate IK/FK controls, reverse foot setups, limb twist setups.
 There is a small UI in which the controls and options are displayed and buttons for executing functions.
 
+INSTALLATION: 
+Drag ba_GenericWindow.py and ba_skeletonGenerator.py into your Users/user/Documents/maya/version/scripts directory. Import the module and call showUI()
+
 INSTRUCTIONS:
 Open the UI and press 'Generate Locators' under the 'Locators' header to create the locators that the tool will use for generating the skeleton. The locators are named logically and correspond to key parts of the body.
 Note: Only the locators for the right half of the body are generated as the tool mirrors the skeleton that it creates from these locators.
