@@ -23,13 +23,16 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
 
     def generateSkeleton(self, _numSpineJts, *args):
         self.generateSpine(_numSpineJts)
+        self.wristTwist = False
         self.generateArms()
         self.revFoot = False
         if pm.checkBoxGrp(self.skelModRadio, q=1, value1=1):
             self.revFoot = True
         self.generateLegs(self.revFoot)
         self.generateHead()
-        self.generateHands()
+        if pm.checkBoxGrp(self.skelModRadio, q=1, value2=1):
+            self.wristTwist = True
+        self.generateHands(self.wristTwist)
 
     def generateLocators(self, *args):
         if len(self.spineLocators) > 0:
@@ -142,10 +145,10 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         self.generateHandControls()
         self.l_arm_ctrls = []
         self.l_arm_ctrls = self.generateCtrls(self.shoulder_ctrl[0], self.l_armJoints[1:4], 'l',
-                                              self.l_arm_ikHandle[0], self.l_hand_ctrl, self.ikfk)
+                                              self.l_arm_ikHandle[0], self.l_hand_grp, self.ikfk)
         self.r_arm_ctrls = []
         self.r_arm_ctrls = self.generateCtrls(self.shoulder_ctrl[0], self.r_armJoints[1:4], 'r',
-                                              self.r_arm_ikHandle[0], self.r_hand_ctrl, self.ikfk)
+                                              self.r_arm_ikHandle[0], self.r_hand_grp, self.ikfk)
         par = pm.listRelatives(self.l_arm_ctrls, p=1)
         pm.parent(par, self.shoulder_ctrl[0])
         par = pm.listRelatives(self.r_arm_ctrls, p=1)
@@ -193,7 +196,7 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         rad = pm.PyNode(_joint).getRadius()
         pm.xform(ro=(_offsetXYZ), s=(int(rad) * _scaleMultiplier,
                                      int(rad) * _scaleMultiplier, int(rad) * _scaleMultiplier))
-        pm.makeIdentity(a=1, t=1)
+        pm.makeIdentity(ctrl, a=1, t=1)
         return ctrl
 #  -----------------------------------------------------------------------------
 
@@ -286,32 +289,41 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
             pm.mirrorJoint(
                 _limbJtArray[0], mb=1, mxy=1, sr=('_r_', '_' + _limbSide + '_'))
 
-    def generateTwistSystem(self, _twistEnds):
+    def generateTwistSystem(self, _twistEnds, _twistTarget, _invert = False):
         #TODO: finish generating the twist system, will probably need to happen after hand generation
-        print 'generate twist system: ' + str(_twistEnds)
-        j1Trans = _twistEnds[0].t.get()
-        j2Trans = _twistEnds[-1].t.get()
-        twistAim = pm.datatypes.Vector(j1Trans - j2Trans)
+        j1Trans = pm.PyNode(_twistEnds[0]).getTranslation(space='world')
+        j2Trans = pm.PyNode(_twistEnds[-1]).getTranslation(space='world')
+        twistAim = pm.datatypes.Vector(j2Trans - j1Trans)
         twistAim.normalize()
         twistDist = self.distanceBetween(j1Trans, j2Trans)
-        twistDiv = twistDist / 3
+        twistDiv = twistDist / 5
         i = 1
         splitLocName = str(_twistEnds[0])[5:]
+        twistJts = []
         while i < 4:
-            pos = j1Trans + (twistAim * (twistDiv * i))
+            pos = j1Trans + (twistAim * (twistDiv * i+1))
             newJt = pm.joint(n=splitLocName + '_twist_0' + str(i), p=pos)
             pm.parent(newJt, _twistEnds[0])
             newJt.jointOrient.set([0, 0, 0])
+            twistJts.append(newJt)
             i += 1
-
+        twist01_oc1 = pm.orientConstraint(twistJts[-1], twistJts[0], w=1, mo=0)
+        twist01_oc2 = pm.orientConstraint(_twistEnds[0], twistJts[0], w=2, mo=0)
+        twist02_oc1 = pm.orientConstraint(twistJts[-1], twistJts[1], w=2, mo=0)
+        twist02_oc1 = pm.orientConstraint(_twistEnds[0], twistJts[1], w=1, mo=0)
+        if _invert:
+            twist03_ac = pm.aimConstraint(_twistEnds[-1], twistJts[-1], aim=(1,0,0), 
+                              wuo=_twistTarget,
+                              wut='objectrotation', wu=(0,1,0)) 
+        else:
+            twist03_ac = pm.aimConstraint(_twistEnds[-1], twistJts[-1], aim=(-1,0,0), 
+                                          wuo=_twistTarget,
+                                          wut='objectrotation', wu=(0,-1,0)) 
+        
     def generateArms(self):
         self.r_armJoints = []
-        twistEnds = []
         self.generateLimb(
             'l', 'r_arm', self.armLocators, self.r_armJoints, self.spineJoints[2], False)
-        twistEnds.append(self.r_armJoints[2])
-        twistEnds.append(self.r_armJoints[-1])
-        self.generateTwistSystem(twistEnds)
 
     def generateLegs(self, _revFoot=False):
         self.r_legJoints = []
@@ -389,7 +401,7 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
             pm.makeIdentity(i, a=1, t=1)
         return foot_ctrl
 
-    def generateHands(self):
+    def generateHands(self, _wristTwist = False):
         self.r_hand = []
         self.r_thumbJoints = []
         self.r_indexJoints = []
@@ -422,16 +434,37 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         self.l_arm_ikHandle = pm.ikHandle(
             n='ik_l_arm', sj=self.l_armJoints[1], ee=self.l_armJoints[3], sol='ikRPsolver')
         self.l_hand = self.l_armJoints[4]
+        print self.l_hand
+        if _wristTwist:
+            twistEnds = []
+            twistEnds.append(self.l_armJoints[2])
+            twistEnds.append(self.l_armJoints[3])
+            self.generateTwistSystem(twistEnds, self.l_hand)
+            twistEnds = []
+            twistEnds.append(self.r_armJoints[2])
+            twistEnds.append(self.r_armJoints[3])
+            self.generateTwistSystem(twistEnds, self.r_hand, True)
 
     def generateHandControls(self):
+        # TODO: create a group above the hand control that will hold the constraints
+        self.l_hand_grp = None
+        self.l_hand_grp = pm.group(em=1, n='l_hand_grp')
+        self.l_hand_grp.t.set(pm.PyNode(self.l_hand).getTranslation(space='world'))
+        pm.makeIdentity(self.l_hand_grp)
         self.l_hand_ctrl = self.createAlignedControl(
             'l', self.l_hand, 'hand', [0, 0, 0], 3)
         pm.orientConstraint(self.l_hand_ctrl, self.l_hand)
         pm.pointConstraint(self.l_hand_ctrl, self.l_arm_ikHandle[0])
+        pm.parent(self.l_hand_ctrl[0].getParent(), self.l_hand_grp)
+        self.r_hand_grp = None
+        self.r_hand_grp = pm.group(em=1, n='r_hand_grp')
+        self.r_hand_grp.t.set(pm.PyNode(self.r_hand).getTranslation(space='world'))
+        pm.makeIdentity(self.r_hand_grp)
         self.r_hand_ctrl = self.createAlignedControl(
             'r', self.r_hand, 'hand', [0, 0, 0], 3)
         pm.orientConstraint(self.r_hand_ctrl, self.r_hand)
         pm.pointConstraint(self.r_hand_ctrl, self.r_arm_ikHandle[0])
+        pm.parent(self.r_hand_ctrl[0].getParent(), self.r_hand_grp)
 
     def generateFinger(self, _rootLoc, _endLoc, _fingerName, _handedness, _numMidJoints=2):
         fingerChain = []
