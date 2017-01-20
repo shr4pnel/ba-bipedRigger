@@ -141,29 +141,53 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         self.generatePoleVectorCtrl('r', self.r_legJoints[0:3], self.r_leg_ikHandle[0])
         self.generatePoleVectorCtrl('l', self.l_armJoints[1:4], self.l_arm_ikHandle[0])
         self.generatePoleVectorCtrl('r', self.r_armJoints[1:4], self.r_arm_ikHandle[0])
+        self.generateLegCtrls()
+        self.generateArmCtrls()
+
+    def generateArmCtrls(self):
+        self.l_arm_ctrls = []
+        self.l_arm_ctrls = self.generateCtrls(self.shoulder_ctrl[0], self.l_armJoints[1:4], 
+                                              'l', self.ikfk)
+        self.r_arm_ctrls = []
+        self.r_arm_ctrls = self.generateCtrls(self.shoulder_ctrl[0], self.r_armJoints[1:4], 
+                                              'r', self.ikfk)
+        par = pm.listRelatives(self.l_arm_ctrls, p=1)
+        pm.parent(par, self.shoulder_ctrl[0])
+        par = pm.listRelatives(self.r_arm_ctrls, p=1)
+        pm.parent(par, self.shoulder_ctrl[0])      
+        self.connectIKFKAttrs(self.shoulder_ctrl[0], self.l_arm_ctrls[1], self.l_hand_grp,
+                               'l', self.l_arm_ikHandle[0])
+        self.connectIKFKAttrs(self.shoulder_ctrl[0], self.r_arm_ctrls[1], self.r_hand_grp,
+                               'r', self.r_arm_ikHandle[0])
+        
+    def generateLegCtrls(self):
         if self.ikfk:
             self.l_leg_ctrls = []
-            self.l_leg_ctrls = self.generateCtrls(self.hip_ctrl[0], self.l_legJoints[0:3], 'l',
-                                                  self.l_leg_ikHandle[0], self.l_footCtrl[0], self.ikfk)
+            self.l_leg_ctrls = self.generateCtrls(self.hip_ctrl[0], self.l_legJoints[0:3], 
+                                                  'l', self.ikfk)
             self.r_leg_ctrls = []
-            self.r_leg_ctrls = self.generateCtrls(self.hip_ctrl[0], self.r_legJoints[0:3], 'r',
-                                                  self.r_leg_ikHandle[0], self.r_footCtrl[0], self.ikfk)
-            self.l_arm_ctrls = []
-            self.l_arm_ctrls = self.generateCtrls(self.shoulder_ctrl[0], self.l_armJoints[1:4], 'l',
-                                                  self.l_arm_ikHandle[0], self.l_hand_grp, self.ikfk)
-            self.r_arm_ctrls = []
-            self.r_arm_ctrls = self.generateCtrls(self.shoulder_ctrl[0], self.r_armJoints[1:4], 'r',
-                                                  self.r_arm_ikHandle[0], self.r_hand_grp, self.ikfk)
-            par = pm.listRelatives(self.l_arm_ctrls, p=1)
-            pm.parent(par, self.shoulder_ctrl[0])
-            par = pm.listRelatives(self.r_arm_ctrls, p=1)
-            pm.parent(par, self.shoulder_ctrl[0])
+            self.r_leg_ctrls = self.generateCtrls(self.hip_ctrl[0], self.r_legJoints[0:3], 
+                                                  'r', self.ikfk)
             par = pm.listRelatives(self.l_leg_ctrls[0], p=1)
             pm.parent(par, self.hipsRotate_ctrl[0])
             par = pm.listRelatives(self.r_leg_ctrls[0], p=1)
             pm.parent(par, self.hipsRotate_ctrl[0])
-        self.createConstraintHolder(self.l_hand_grp, self.l_arm_ctrls[1], self.shoulder_ctrl[0], 
-                                    'l', self.l_arm_ikHandle[0])
+            pm.parentConstraint(self.l_leg_ctrls[1], self.l_foot_grp, mo=1, w=0)
+            pm.parentConstraint(self.r_leg_ctrls[1], self.r_foot_grp, mo=1, w=0)
+            self.connectIKFKAttrs(self.hip_ctrl[0], self.l_leg_ctrls[1], self.l_foot_grp,
+                                   'l', self.l_leg_ikHandle[0])  
+            self.connectIKFKAttrs(self.hip_ctrl[0], self.r_leg_ctrls[1], self.r_foot_grp,
+                                   'r', self.r_leg_ikHandle[0])      
+            
+    def connectIKFKAttrs(self, _upstreamControl, _grpParent, _holderGrp, _handedness, _ikHandle, _attrName='_ikfk'):
+        parCons = pm.parentConstraint(_grpParent, _holderGrp, mo=1, w=0)
+        pm.connectAttr(_upstreamControl + '.' + _handedness + '_ikfk', parCons.w0)
+        limbName = str(_ikHandle)[2:5]
+        ik_rev = pm.createNode(
+            'reverse', n=limbName+'_'+_handedness+'_ik_rev')
+        pm.connectAttr(
+            _upstreamControl+'.l_ikfk', ik_rev + '.inputX')
+        pm.connectAttr(ik_rev.outputX, _ikHandle.ikBlend)
 
 # Utility methods -------------------------------------------------------------
     def distanceBetween(self, _objA, _objB):
@@ -202,7 +226,8 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         ctrl[0].rotate.set([0, 0, 0])
         rad = pm.PyNode(_joint).getRadius()
         pm.xform(ro=(_offsetXYZ), s=(int(rad) * _scaleMultiplier,
-                                     int(rad) * _scaleMultiplier, int(rad) * _scaleMultiplier))
+                                     int(rad) * _scaleMultiplier, 
+                                     int(rad) * _scaleMultiplier))
         pm.makeIdentity(ctrl, a=1, t=1)
         return ctrl
 #  -----------------------------------------------------------------------------
@@ -297,8 +322,6 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
                 _limbJtArray[0], mb=1, mxy=1, sr=('_r_', '_' + _limbSide + '_'))
 
     def generateTwistSystem(self, _twistEnds, _twistTarget, _invert=False):
-        # TODO: finish generating the twist system, will probably need to
-        # happen after hand generation
         j1Trans = pm.PyNode(_twistEnds[0]).getTranslation(space='world')
         j2Trans = pm.PyNode(_twistEnds[-1]).getTranslation(space='world')
         twistAim = pm.datatypes.Vector(j2Trans - j1Trans)
@@ -370,20 +393,18 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
             self.l_footCtrl = self.createAlignedControl(
                 'l', self.l_legJoints[-1], 'foot')
             pm.pointConstraint(self.l_footCtrl, self.l_leg_ikHandle[0])
-        if self.ikfk:
-            # TODO: Foot groups not generating at the correct position
-            self.r_foot_grp = None
+        if self.ikfk:          
             self.r_foot_grp = pm.group(em=1, n='r_foot_grp')
             trans = pm.PyNode(self.r_legJoints[-1]).getTranslation(space='world')
             self.r_foot_grp.t.set(trans)
-            pm.makeIdentity(self.r_foot_grp)
+            pm.makeIdentity(self.r_foot_grp, a=1, t=1)
             pm.parent(self.r_footCtrl[0].getParent(), self.r_foot_grp)
-            self.l_foot_grp = None
             self.l_foot_grp = pm.group(em=1, n='l_foot_grp')
             trans = pm.PyNode(self.l_legJoints[-1]).getTranslation(space='world')
             self.l_foot_grp.t.set(trans)
-            pm.makeIdentity(self.l_foot_grp)
+            pm.makeIdentity(self.l_foot_grp, a=1, t=1)
             pm.parent(self.l_footCtrl[0].getParent(), self.l_foot_grp)
+            
 
     def generateReverseFoot(self, _handedness, _footJoints, _legJoints, _revFootJoints, _ikHandle):
         jDrv_ankle = pm.duplicate(_legJoints[-1], po=1)
@@ -432,6 +453,7 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         return foot_ctrl
 
     def generateHands(self, _wristTwist=False):
+        # TODO: orient hand bone away from elbow
         self.r_hand = []
         self.r_thumbJoints = []
         self.r_indexJoints = []
@@ -442,6 +464,7 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         localPos = self.loc_r_hand.localPosition.get()
         self.r_hand = pm.joint(p=delta + localPos, n='bind_r_hand')
         pm.parent(self.r_hand, self.r_armJoints[-1])
+        self.r_hand.jointOrient.set(0,0,0)
         self.r_thumbJoints = self.generateFinger(
             self.handLocators[1], self.handLocators[2], 'thumb', 'r', 1)
         self.r_indexJoints = self.generateFinger(
@@ -475,30 +498,27 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
             self.generateTwistSystem(twistEnds, self.r_hand, True)
 
     def generateHandControls(self):
-        self.l_hand_grp = None
         self.l_hand_grp = pm.group(em=1, n='l_hand_grp')
         trans = pm.PyNode(self.l_hand).getTranslation(space='world')
         self.l_hand_grp.t.set(trans)
         pm.makeIdentity(self.l_hand_grp, a=1, t=1)
         self.l_hand_ctrl = self.createAlignedControl(
-            'l', self.l_hand, 'hand', [0, 0, 0], 3)
+            'l', self.l_hand, 'hand', _scaleMultiplier=3)
         pm.orientConstraint(self.l_hand_ctrl, self.l_hand)
         pm.pointConstraint(self.l_hand_ctrl, self.l_arm_ikHandle[0])
         pm.parent(self.l_hand_ctrl[0].getParent(), self.l_hand_grp)
-        self.r_hand_grp = None
         self.r_hand_grp = pm.group(em=1, n='r_hand_grp')
         trans = pm.PyNode(self.r_hand).getTranslation(space='world')
         self.r_hand_grp.t.set(trans)
         pm.makeIdentity(self.r_hand_grp, a=1, t=1)
         self.r_hand_ctrl = self.createAlignedControl(
-            'r', self.r_hand, 'hand', [0, 0, 0], 3)
+            'r', self.r_hand, 'hand', _scaleMultiplier=3)
         pm.orientConstraint(self.r_hand_ctrl, self.r_hand)
         pm.pointConstraint(self.r_hand_ctrl, self.r_arm_ikHandle[0])
         pm.parent(self.r_hand_ctrl[0].getParent(), self.r_hand_grp)
             
-    def createConstraintHolder(self, _holderGrp, _endCtrl, _hierachyControl, _handedness, _ikHandle):
-        # TODO: make this fucking shit work
-        parCons = pm.parentConstraint(_holderGrp, _endCtrl, mo=1, w=0)
+    def parentToFKSpace(self, _holderGrp, _endCtrl, _hierachyControl, _handedness, _ikHandle):
+        parCons = pm.parentConstraint(_endCtrl, _holderGrp, mo=1, w=0)
         ik_rev = pm.createNode(
             'reverse', n=_hierachyControl + '_' + _handedness + '_ik_rev')
         pm.connectAttr(
@@ -586,12 +606,12 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
                        0], ln='ikfk_div', nn='-', at='enum', en='Xtra Attrs:', k=0, h=0)
             pm.setAttr(self.shoulder_ctrl[0] + '.ikfk_div', cb=1)
             pm.addAttr(self.shoulder_ctrl[
-                       0], ln='l_ikfk', nn='L Leg IK/FK', at='enum', en='IK:FK', k=1, h=0)
+                       0], ln='l_ikfk', nn='L Arm IK/FK', at='enum', en='IK:FK', k=1, h=0)
             pm.addAttr(self.shoulder_ctrl[
-                       0], ln='r_ikfk', nn='R Leg IK/FK', at='enum', en='IK:FK', k=1, h=0)
+                       0], ln='r_ikfk', nn='R Arm IK/FK', at='enum', en='IK:FK', k=1, h=0)
         pm.orientConstraint(self.shoulder_ctrl, self.spineJoints[-1 - 1], mo=0)
 
-    def generateCtrls(self, _hierachyControl, _jointChain, _handedness, _ikHandle, _endCtrl, _ikfk=False):
+    def generateCtrls(self, _hierachyControl, _jointChain, _handedness, _ikfk):
         ctrls = []
         for i in _jointChain[0:2]:
             var = self.createAlignedControl(_handedness, i, str(i)[7:] + '_fk')
@@ -611,17 +631,6 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
             j = j + 1
         for i in ctrls:
             pm.makeIdentity(a=1, t=1)
-        #=======================================================================
-        # if _ikfk:
-        #     parCons = pm.parentConstraint(ctrls[1][0], _endCtrl, mo=1, w=0)
-        #     ik_rev = pm.createNode(
-        #         'reverse', n=_hierachyControl + '_' + _handedness + '_ik_rev')
-        #     pm.connectAttr(
-        #         _hierachyControl + '.' + _handedness + '_ikfk', parCons.w0)
-        #     pm.connectAttr(
-        #         _hierachyControl + '.' + _handedness + '_ikfk', ik_rev + '.inputX')
-        #     pm.connectAttr(ik_rev.outputX, _ikHandle.ikBlend)
-        #=======================================================================
         return ctrls
     
     def generatePoleVectorCtrl(self, _handedness, _jointChain, _ikHandle):
