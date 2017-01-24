@@ -435,7 +435,6 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
             jtParent = newJt
             i += 1
         # Parent joints -------------------------------------------------------
-        print spineChain
         pm.parent(self.spineJoints[0], spineChain[-1])
         self.spineJoints[0].jointOrient.set([0, 0, 0])
         for i in spineChain:
