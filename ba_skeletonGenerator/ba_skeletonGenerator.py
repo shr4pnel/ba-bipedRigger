@@ -22,6 +22,8 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         ba_autoRiggerWindow.__init__(self)
 
     def generateSkeleton(self, _numSpineJts, *args):
+        self.rigHeight = self.distanceBetween(self.loc_head.localPosition.get(), 
+                                              self.loc_r_ankle.localPosition.get())
         self.revFoot = False
         if pm.checkBoxGrp(self.skelModRadio, q=1, value1=1):
             self.revFoot = True
@@ -36,6 +38,17 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         self.generateLegs()
         self.generateHead()
         self.generateHands(self.wristTwist)
+        if self.spineLocators:
+            pm.delete(self.spineLocators[:])
+        if self.armLocators:
+            pm.delete(self.armLocators[:])
+        if self.legLocators:
+            pm.delete(self.legLocators[:])
+        if self.footLocators:
+            pm.delete(self.footLocators[:])
+        if self.handLocators:
+            pm.delete(self.handLocators[:])
+        pm.delete(self.loc_head)
 
     def generateLocators(self, *args):
         if self.spineLocators:
@@ -49,89 +62,99 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         if self.handLocators:
             del self.handLocators[:]
         # Spine locators
-        self.loc_spine01 = pm.spaceLocator(p=[-2, 15, 1])
-        pm.rename(self.loc_spine01, 'loc_neck')
+        self.loc_spine01 = pm.spaceLocator(n='loc_neck', p=[0, 1.95, 0])
         pm.xform(cp=1)
         self.spineLocators.append(self.loc_spine01)
-        self.loc_spine02 = pm.spaceLocator(n='loc_hips', p=[-2, 2, 1])
+        self.loc_spine02 = pm.spaceLocator(n='loc_hips', p=[0, 1.262, 0])
         self.spineLocators.append(self.loc_spine02)
         pm.xform(cp=1)
         # Right arm locators
-        self.loc_r_clav = pm.spaceLocator(n='loc_r_clav', p=[1, 15, 4])
+        self.loc_r_clav = pm.spaceLocator(n='loc_r_clav', p=[0.16, 1.95, 0.16])
         self.armLocators.append(self.loc_r_clav)
         pm.xform(cp=1)
-        self.loc_r_shoulder = pm.spaceLocator(n='loc_r_shoulder', p=[0, 15, 6])
+        self.loc_r_shoulder = pm.spaceLocator(n='loc_r_shoulder', p=[0.105, 1.95, 0.26])
         self.armLocators.append(self.loc_r_shoulder)
         pm.xform(cp=1)
-        self.loc_r_elbow = pm.spaceLocator(n='loc_r_elbow', p=[-1, 15, 13])
+        self.loc_r_elbow = pm.spaceLocator(n='loc_r_elbow', p=[0.05, 1.95, 0.63])
         self.armLocators.append(self.loc_r_elbow)
         pm.xform(cp=1)
-        self.loc_r_wrist = pm.spaceLocator(n='loc_r_wrist', p=[0, 15, 19])
+        self.loc_r_wrist = pm.spaceLocator(n='loc_r_wrist', p=[0.105, 1.95, 0.95])
         self.armLocators.append(self.loc_r_wrist)
         pm.xform(cp=1)
         # Right hand locators
-        self.loc_r_hand = pm.spaceLocator(n='loc_r_hand', p=[0, 15, 19])
+        self.loc_r_hand = pm.spaceLocator(n='loc_r_hand', p=[0.105, 1.95, 0.95])
         self.handLocators.append(self.loc_r_hand)
         pm.xform(cp=1)
         self.loc_r_thumbRoot = pm.spaceLocator(
-            n='loc_r_thumbRoot', p=[0, 16, 20])
+            n='loc_r_thumbRoot', p=[0.105, 2, 1])
         self.handLocators.append(self.loc_r_thumbRoot)
         pm.xform(cp=1)
         self.loc_r_thumbEnd = pm.spaceLocator(
-            n='loc_r_thumbEnd', p=[0, 16, 22])
+            n='loc_r_thumbEnd', p=[0.105, 2, 1.1])
         self.handLocators.append(self.loc_r_thumbEnd)
         pm.xform(cp=1)
         self.loc_r_indexRoot = pm.spaceLocator(
-            n='loc_r_indexRoot', p=[0, 15.5, 21])
+            n='loc_r_indexRoot', p=[0.105, 1.974, 1.05])
         self.handLocators.append(self.loc_r_indexRoot)
         pm.xform(cp=1)
         self.loc_r_indexEnd = pm.spaceLocator(
-            n='loc_r_indexEnd', p=[0, 15.5, 23])
+            n='loc_r_indexEnd', p=[0.105, 1.974, 1.15])
         self.handLocators.append(self.loc_r_indexEnd)
         pm.xform(cp=1)
         self.loc_r_midRoot = pm.spaceLocator(
-            n='loc_r_midRoot', p=[0, 15, 21.5])
+            n='loc_r_midRoot', p=[0.105, 1.95, 1.07])
         self.handLocators.append(self.loc_r_midRoot)
         pm.xform(cp=1)
-        self.loc_r_midEnd = pm.spaceLocator(n='loc_r_midEnd', p=[0, 15, 23.5])
+        self.loc_r_midEnd = pm.spaceLocator(n='loc_r_midEnd', p=[0.105, 1.95, 1.18])
         self.handLocators.append(self.loc_r_midEnd)
         pm.xform(cp=1)
         self.loc_r_ringRoot = pm.spaceLocator(
-            n='loc_r_ringRoot', p=[0, 14.5, 21])
+            n='loc_r_ringRoot', p=[0.105, 1.918, 1.049])
         self.handLocators.append(self.loc_r_ringRoot)
         pm.xform(cp=1)
         self.loc_r_ringEnd = pm.spaceLocator(
-            n='loc_r_ringEnd', p=[0, 14.5, 23])
+            n='loc_r_ringEnd', p=[0.105, 1.918, 1.154])
         self.handLocators.append(self.loc_r_ringEnd)
         pm.xform(cp=1)
         self.loc_r_pinkyRoot = pm.spaceLocator(
-            n='loc_r_pinkyRoot', p=[0, 14, 21])
+            n='loc_r_pinkyRoot', p=[0.105, 1.891, 1.049])
         self.handLocators.append(self.loc_r_pinkyRoot)
         pm.xform(cp=1)
         self.loc_r_pinkyEnd = pm.spaceLocator(
-            n='loc_r_pinkyEnd', p=[0, 14, 22.5])
+            n='loc_r_pinkyEnd', p=[0.105, 1.891, 1.127])
         self.handLocators.append(self.loc_r_pinkyEnd)
         pm.xform(cp=1)
         # Right leg locators --------------------------------------------------
-        self.loc_r_hip = pm.spaceLocator(n='loc_r_hip', p=[-2, -1, 6])
+        self.loc_r_hip = pm.spaceLocator(n='loc_r_hip', p=[0, 1.105, 0.263])
         self.legLocators.append(self.loc_r_hip)
         pm.xform(cp=1)
-        self.loc_r_knee = pm.spaceLocator(n='loc_r_knee', p=[1, -11, 6])
+        self.loc_r_knee = pm.spaceLocator(n='loc_r_knee', p=[0.157, 0.581, 0.263])
         self.legLocators.append(self.loc_r_knee)
         pm.xform(cp=1)
-        self.loc_r_ankle = pm.spaceLocator(n='loc_r_ankle', p=[-2, -21, 6])
+        self.loc_r_ankle = pm.spaceLocator(n='loc_r_ankle', p=[0, 0.057, 0.263])
         self.legLocators.append(self.loc_r_ankle)
         pm.xform(cp=1)
         # Right foot locators
-        self.loc_r_toeBase = pm.spaceLocator(n='loc_r_toeBase', p=[1, -22, 6])
+        self.loc_r_toeBase = pm.spaceLocator(n='loc_r_toeBase', p=[0.157, 0, 0.263])
         self.footLocators.append(self.loc_r_toeBase)
         pm.xform(cp=1)
-        self.loc_r_toeEnd = pm.spaceLocator(n='loc_r_toeEnd', p=[3, -22, 6])
+        self.loc_r_toeEnd = pm.spaceLocator(n='loc_r_toeEnd', p=[0.262, 0, 0.263])
         self.footLocators.append(self.loc_r_toeEnd)
         pm.xform(cp=1)
         # Head locator
-        self.loc_head = pm.spaceLocator(n='loc_head', p=[-2, 17, 1])
+        self.loc_head = pm.spaceLocator(n='loc_head', p=[0, 2.049, 0])
         pm.xform(cp=1)
+        self.loc_head.localScale.set([0.001,0.001,0.001])
+        for i  in self.spineLocators:
+            i.localScale.set([0.001,0.001,0.001])
+        for i in self.armLocators:
+            i.localScale.set([0.001,0.001,0.001])
+        for i in self.legLocators:
+            i.localScale.set([0.001,0.001,0.001])
+        for i in self.footLocators:
+            i.localScale.set([0.001,0.001,0.001])
+        for i in self.handLocators:
+            i.localScale.set([0.001,0.001,0.001])
 
     def generateControlRig(self, *args):
         global_grp = pm.group(em=1, n='global_node')
@@ -202,6 +225,7 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
             if 'LocAlign_' in str(trans):                
                 self.lockHideAttr(trans[0], locAttrs)
                 trans[0].overrideEnabled.set(True)
+                trans[0].localScale.set([0,0,0])
             
     def generateArmCtrls(self):
         self.l_arm_ctrls = []
@@ -285,6 +309,7 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
     def generateAlignedControl(self, _handedness, _joint, _name, _offsetXYZ=[0, 90, 0], _scaleMultiplier=3):
         # TODO: lock and hide all attrs on the LocAlign_ locators after
         # generation is done
+        _scaleMultiplier = _scaleMultiplier ** self.rigHeight
         jPos = pm.PyNode(_joint).getTranslation(space='world')
         loc = pm.spaceLocator(
             n='LocAlign_' + _handedness + '_' + _name + '_ctrl', p=jPos)
@@ -382,7 +407,7 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         splitLocName = str(_twistEnds[0])[5:]
         twistJts = []
         while i < 4:
-            pos = j1Trans + (twistAim * (twistDiv * i + 1))
+            pos = j1Trans + (twistAim * (twistDiv * (i + 1)))
             newJt = pm.joint(n=splitLocName + '_twist_0' + str(i), p=pos)
             pm.parent(newJt, _twistEnds[0])
             newJt.jointOrient.set([0, 0, 0])
@@ -707,7 +732,7 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
 
     def generateShoulderCtrls(self):
         self.shoulder_ctrl = self.generateAlignedControl(
-            'main', self.spineJoints[0], 'shoulder', [0, 90, 0], 7)
+            'main', self.spineJoints[0], 'shoulder', [0, 90, 0], 6)
         trans = self.spineJoints[-1-1]._getTranslation(space='world')
         pm.xform(self.shoulder_ctrl[0], rp=trans, sp=trans, ws=1)
         if self.ikfk:
@@ -767,6 +792,7 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         poleVectorCtrl = pm.spaceLocator(
             n=_handedness + '_' + str(_jointChain[1])[7:] + '_ctrl', p=pvPos)
         pm.xform(cp=1)
+        poleVectorCtrl.localScale.set([0.001,0.001,0.001])
         pm.poleVectorConstraint(poleVectorCtrl, _ikHandle)
         ctrlShape = pm.listRelatives(poleVectorCtrl)
         ctrlShape[0].overrideEnabled.set(True)
