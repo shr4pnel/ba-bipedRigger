@@ -142,6 +142,7 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         self.generateSpineCtrls()
         self.generateShoulderCtrls()
         self.generateHandControls()
+        self.generateNeckHeadCtrls()
         l_knee_ctrl = self.generatePoleVectorCtrl('l', self.l_legJoints[0:3], self.l_leg_ikHandle[0])
         r_knee_ctrl = self.generatePoleVectorCtrl('r', self.r_legJoints[0:3], self.r_leg_ikHandle[0])
         l_elbow_ctrl = self.generatePoleVectorCtrl('l', self.l_armJoints[1:4], self.l_arm_ikHandle[0], _ctrlDist=5)
@@ -151,12 +152,13 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         self.generateClavCtrls()
         if self.ikfk:
             self.generateArmCtrls()
+            pm.parent(self.l_foot_grp, ctrls_grp)
+            pm.parent(self.r_foot_grp, ctrls_grp)
+        else:
+            pm.parent(self.r_footCtrl[0].getParent(), ctrls_grp)
+            pm.parent(self.l_footCtrl[0].getParent(), ctrls_grp)
         pm.parent(self.spineCtrls[0][0].getParent(), self.hip_ctrl[0])
         pm.parent(self.hip_ctrl[0].getParent(), ctrls_grp)
-        pm.parent(self.l_hand_grp, ctrls_grp)
-        pm.parent(self.r_hand_grp, ctrls_grp)
-        pm.parent(self.l_foot_grp, ctrls_grp)
-        pm.parent(self.r_foot_grp, ctrls_grp)
         pm.parent(l_knee_ctrl, ctrls_grp)
         pm.parent(r_knee_ctrl, ctrls_grp)
         pm.parent(l_elbow_ctrl, ctrls_grp)
@@ -167,6 +169,8 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         pm.parent(iks_grp, global_grp)
         pm.parent(self.spineJoints[1], jts_grp)
         pm.parent(jts_grp, global_grp)
+        pm.parent(self.l_hand_grp, ctrls_grp)
+        pm.parent(self.r_hand_grp, ctrls_grp)
         fkAttrs = ['tx','ty','tz', 'sx', 'sy', 'sz']
         scaleAttrs = ['sx', 'sy', 'sz']
         for i in self.spineCtrls:
@@ -189,6 +193,15 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         self.lockHideAttr(self.l_clav_ctrl[0], fkAttrs)
         self.lockHideAttr(self.r_clav_ctrl[0], fkAttrs)
         self.lockHideAttr(self.hip_ctrl[0], scaleAttrs)
+        self.lockHideAttr(self.neck_ctrl[0], fkAttrs)
+        self.lockHideAttr(self.head_ctrl[0], fkAttrs)
+        ctrls = pm.listRelatives(ctrls_grp, ad=1)
+        locAttrs = ['tx','ty','tz', 'rx', 'ry', 'rz', 'sx', 'sy', 'sz']
+        for i in ctrls:
+            trans = pm.listRelatives(i, typ='transform', p=1, fullPath=1)
+            if 'LocAlign_' in str(trans):                
+                self.lockHideAttr(trans[0], locAttrs)
+                trans[0].overrideEnabled.set(True)
             
     def generateArmCtrls(self):
         self.l_arm_ctrls = []
@@ -214,10 +227,17 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         self.l_clav_ctrl = self.generateAlignedControl('l', self.l_armJoints[0], 'clav')
         pm.orientConstraint(self.l_clav_ctrl, self.l_armJoints[0])
         self.r_clav_ctrl = self.generateAlignedControl('r', self.r_armJoints[0], 'clav')
-        pm.orientConstraint(self.r_clav_ctrl, self.r_armJoints[0])
-        
+        pm.orientConstraint(self.r_clav_ctrl, self.r_armJoints[0])        
         pm.parent(self.l_clav_ctrl[0].getParent(), self.shoulder_ctrl)
         pm.parent(self.r_clav_ctrl[0].getParent(), self.shoulder_ctrl)
+        
+    def generateNeckHeadCtrls(self):
+        self.head_ctrl = self.generateAlignedControl('main', self.headJoint, 'head', _scaleMultiplier=4)
+        pm.orientConstraint(self.head_ctrl, self.headJoint)
+        self.neck_ctrl = self.generateAlignedControl('main', self.spineJoints[0], 'neck', _scaleMultiplier=4)
+        pm.orientConstraint(self.neck_ctrl, self.spineJoints[0])
+        pm.parent(self.head_ctrl[0].getParent(), self.neck_ctrl[0])
+        pm.parent(self.neck_ctrl[0].getParent(), self.shoulder_ctrl)
         
     def generateLegCtrls(self):
         if self.ikfk:
@@ -742,13 +762,7 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         jMidTrans = pm.PyNode(_jointChain[1]).getTranslation(space='world')
         # Get the aim vector between the mid point and the mid joint
         midAim = pm.datatypes.Vector(jMidTrans - midPos)
-        # Get the distance between the mid point and the mid joint
-        midLength = self.distanceBetween(midPos, jMidTrans)
-        # Calculate the distance you want the control to be away from the
-        # mid joint
-        midDistance = midLength * 1.5
-        # Get the vector3 position that is midDistance along the midAim
-        # vector
+        # Get the vector3 position that is midDistance along the midAim vector
         pvPos = jMidTrans + (midAim * _ctrlDist)
         # Create a locator there
         poleVectorCtrl = pm.spaceLocator(
