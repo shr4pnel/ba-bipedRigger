@@ -3,7 +3,7 @@
 
 ###### DISCLAIMER: 
 
-This tool is presented in an as-is state, it is a work in progress and total functionality is not yet guaranteed. If you have problems I will do my best to address them, but I guarantee nothing.
+This tool is presented in an as-is state, it is a work in progress and total functionality is not yet guaranteed. If you have problems I will do my best to address them, but I guarantee nothing. See 'LICENSE' for further details.
 
 ###### SCOPE: 
 
