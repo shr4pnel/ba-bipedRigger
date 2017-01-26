@@ -173,27 +173,34 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         self.generateFootCtrls()
         self.generateLegCtrls()
         self.generateClavCtrls()
+        worldCtrl_rad = self.distanceBetween(pm.PyNode(self.l_legJoints[2]).getTranslation(space='world'), 
+                             pm.PyNode(self.r_legJoints[2]).getTranslation(space='world'))
+        self.world_ctrl = pm.circle(c=[0,0,0], n='world_ctrl', nr=[0,1,0], r=worldCtrl_rad)
+        self.world_ctrl[0].getShape().overrideEnabled.set(True)
+        self.world_ctrl[0].getShape().overrideColor.set(18)
+        pm.parent(self.world_ctrl[0], ctrls_grp)
         if self.ikfk:
             self.generateArmCtrls()
-            pm.parent(self.l_foot_grp, ctrls_grp)
-            pm.parent(self.r_foot_grp, ctrls_grp)
+            pm.parent(self.l_foot_grp, self.world_ctrl[0])
+            pm.parent(self.r_foot_grp, self.world_ctrl[0])
         else:
-            pm.parent(self.r_footCtrl[0].getParent(), ctrls_grp)
-            pm.parent(self.l_footCtrl[0].getParent(), ctrls_grp)
+            pm.parent(self.r_footCtrl[0].getParent(), self.world_ctrl[0])
+            pm.parent(self.l_footCtrl[0].getParent(), self.world_ctrl[0])
         pm.parent(self.spineCtrls[0][0].getParent(), self.hip_ctrl[0])
-        pm.parent(self.hip_ctrl[0].getParent(), ctrls_grp)
-        pm.parent(l_knee_ctrl, ctrls_grp)
-        pm.parent(r_knee_ctrl, ctrls_grp)
-        pm.parent(l_elbow_ctrl, ctrls_grp)
-        pm.parent(r_elbow_ctrl, ctrls_grp)
+        pm.parent(self.hip_ctrl[0].getParent(), self.world_ctrl[0])
+        pm.parent(l_knee_ctrl, self.world_ctrl[0])
+        pm.parent(r_knee_ctrl, self.world_ctrl[0])
+        pm.parent(l_elbow_ctrl, self.world_ctrl[0])
+        pm.parent(r_elbow_ctrl, self.world_ctrl[0])
         pm.parent(ctrls_grp, global_grp)
         pm.parent(self.l_arm_ikHandle[0], self.l_leg_ikHandle[0], 
                   self.r_arm_ikHandle[0], self.r_leg_ikHandle[0], iks_grp)
         pm.parent(iks_grp, global_grp)
         pm.parent(self.spineJoints[1], jts_grp)
         pm.parent(jts_grp, global_grp)
-        pm.parent(self.l_hand_grp, ctrls_grp)
-        pm.parent(self.r_hand_grp, ctrls_grp)
+        pm.parent(self.l_hand_grp, self.world_ctrl[0])
+        pm.parent(self.r_hand_grp, self.world_ctrl[0])
+        pm.scaleConstraint(self.world_ctrl[0], jts_grp)
         fkAttrs = ['tx','ty','tz', 'sx', 'sy', 'sz']
         scaleAttrs = ['sx', 'sy', 'sz']
         for i in self.spineCtrls:
@@ -313,6 +320,7 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         jPos = pm.PyNode(_joint).getTranslation(space='world')
         loc = pm.spaceLocator(
             n='LocAlign_' + _handedness + '_' + _name + '_ctrl', p=jPos)
+        loc.localScale.set([0,0,0])
         pm.xform(loc, cp=1)
         oc = pm.orientConstraint(_joint, loc, mo=0)
         pm.delete(oc)
@@ -619,6 +627,11 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         self.l_arm_ikHandle = pm.ikHandle(
             n='ik_l_arm', sj=self.l_armJoints[1], ee=self.l_armJoints[3], sol='ikRPsolver')
         self.l_hand = self.l_armJoints[4]
+        self.l_thumbJoints = self.l_armJoints[5:8]
+        self.l_indexJoints = self.l_armJoints[8:12]
+        self.l_midJoints = self.l_armJoints[12:16]
+        self.l_ringJoints = self.l_armJoints[16:20]
+        self.l_pinkyJoints = self.l_armJoints[20:24]
         if _wristTwist:
             twistEnds = []
             twistEnds.append(self.l_armJoints[2])
@@ -648,6 +661,22 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
         pm.orientConstraint(self.r_hand_ctrl, self.r_hand)
         pm.pointConstraint(self.r_hand_ctrl, self.r_arm_ikHandle[0])
         pm.parent(self.r_hand_ctrl[0].getParent(), self.r_hand_grp)
+        self.r_thumbCtrls = self.generateFingerCtrls(self.r_thumbJoints)
+        self.r_indexCtrls = self.generateFingerCtrls(self.r_indexJoints)
+        self.r_midCtrls = self.generateFingerCtrls(self.r_midJoints)
+        self.r_ringCtrls = self.generateFingerCtrls(self.r_ringJoints)
+        self.r_pinkyCtrls = self.generateFingerCtrls(self.r_pinkyJoints)
+        pm.parent(self.r_thumbCtrls[0][0].getParent(), self.r_indexCtrls[0][0].getParent(), 
+                  self.r_midCtrls[0][0].getParent(), self.r_ringCtrls[0][0].getParent(), 
+                  self.r_pinkyCtrls[0][0].getParent(), self.r_hand_ctrl[0])
+        self.l_thumbCtrls = self.generateFingerCtrls(self.l_thumbJoints)
+        self.l_indexCtrls = self.generateFingerCtrls(self.l_indexJoints)
+        self.l_midCtrls = self.generateFingerCtrls(self.l_midJoints)
+        self.l_ringCtrls = self.generateFingerCtrls(self.l_ringJoints)
+        self.l_pinkyCtrls = self.generateFingerCtrls(self.l_pinkyJoints)
+        pm.parent(self.l_thumbCtrls[0][0].getParent(), self.l_indexCtrls[0][0].getParent(), 
+                  self.l_midCtrls[0][0].getParent(), self.l_ringCtrls[0][0].getParent(), 
+                  self.l_pinkyCtrls[0][0].getParent(), self.l_hand_ctrl[0])
             
     def parentToFKSpace(self, _holderGrp, _endCtrl, _hierachyControl, _handedness, _ikHandle):
         parCons = pm.parentConstraint(_endCtrl, _holderGrp, mo=1, w=0)
@@ -710,7 +739,25 @@ class ba_skeletonGenerator(ba_autoRiggerWindow):
             if j < len(fingerChain) - 1:
                 pm.parent(fingerChain[j + 1], fingerChain[j])
             j = j + 1
+        fingerChain[-1].jointOrient.set([0, 0, 0])
         return fingerChain
+    
+    def generateFingerCtrls(self, _fingerChain):
+        # TODO: implement finge ctrl generation
+        fingerCtrls = []
+        for i in _fingerChain:
+            ctrl = self.generateAlignedControl(str(i)[5], i, str(i)[7:], _scaleMultiplier=1.75)
+            fingerCtrls.append(ctrl)
+            pm.orientConstraint(ctrl[0], i)
+        c = 0
+        while c < len(fingerCtrls):
+            if c < len(fingerCtrls) - 1:
+                pm.parent(fingerCtrls[c+1][0].getParent(), fingerCtrls[c])
+            c = c + 1
+        fingAttrs = ['tx','ty','tz', 'sx', 'sy', 'sz']
+        for f in fingerCtrls:
+            self.lockHideAttr(f[0], fingAttrs)
+        return fingerCtrls
 
     def generateHipCtrls(self, _ikfk=False):
         self.hip_ctrl = self.generateAlignedControl(
